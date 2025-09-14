@@ -32,7 +32,6 @@ module solitaire(
 
   // NOTE: Index this by y first - I did it that way in the Python code (can't remember why!)
   reg  [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] board;
-  wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] nxt_board;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] space_exists;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] move_request;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0][3:0] move_legal;
@@ -41,8 +40,8 @@ module solitaire(
   genvar x, y;
 
   generate
-    for (x=0; x<BOARD_WIDTH; x++) begin
-      for (y=0; y<BOARD_WIDTH; y++) begin
+    for (x=0; x<BOARD_WIDTH; x++) begin: g_x
+      for (y=0; y<BOARD_WIDTH; y++) begin: g_y
 
         // Whether a space exists on the grid
         assign space_exists[y][x] =
@@ -66,7 +65,7 @@ module solitaire(
         // Space must exist and contain a piece
         // Must be a piece in the space to the right.
         // Must be an unoccupied space to the right of that.
-        if (x < (BOARD_WIDTH - 2)) begin
+        if (x < (BOARD_WIDTH - 2)) begin: g_move_legal_right
           assign move_legal[y][x][RIGHT] =
             space_exists[y][x] &&
             space_exists[y][x+1'b1] &&
@@ -74,7 +73,7 @@ module solitaire(
             board[y][x] &&
             board[y][x+1'b1] &&
             !board[y][x+2'd2];
-        end else begin
+        end else begin : g_move_legal_right_oob
           assign move_legal[y][x][RIGHT] = 1'b0;
         end
         assign move_valid[y][x][RIGHT] =
@@ -83,7 +82,7 @@ module solitaire(
           move_legal[y][x][RIGHT];
         // Must be a piece in the space to the left.
         // Must be an unoccupied space to the left of that.
-        if (x > 1) begin
+        if (x > 1) begin ; g_move_legal_left
           assign move_legal[y][x][LEFT] =
             space_exists[y][x] &&
             space_exists[y][x-1'b1] &&
@@ -91,7 +90,7 @@ module solitaire(
             board[y][x] &&
             board[y][x-1'b1] &&
             !board[y][x-2'd2];
-        end else begin
+        end else begin : g_move_legal_left_oob
           assign move_legal[y][x][LEFT] = 1'b0;
         end
         assign move_valid[y][x][LEFT] =
@@ -100,7 +99,7 @@ module solitaire(
           move_legal[y][x][LEFT];
         // Must be a piece in the space above.
         // Must be an unoccupied space above of that.
-        if (y > 1) begin
+        if (y > 1) begin : g_move_legal_up
           assign move_legal[y][x][UP] =
             space_exists[y][x] &&
             space_exists[y-1'b1][x] &&
@@ -108,7 +107,7 @@ module solitaire(
             board[y][x] &&
             board[y-1'b1][x] &&
             !board[y-2'd2][x];
-        end else begin
+        end else begin : g_move_legal_up_oob
           assign move_legal[y][x][UP] = 1'b0;
         end
         assign move_valid[y][x][UP] =
@@ -117,7 +116,7 @@ module solitaire(
           move_legal[y][x][UP];
         // Must be a piece in the space above.
         // Must be an unoccupied space above of that.
-        if (y < (BOARD_WIDTH - 2)) begin
+        if (y < (BOARD_WIDTH - 2)) begin : g_move_legal_down
           assign move_legal[y][x][DOWN] =
             space_exists[y][x] &&
             space_exists[y+1'b1][x] &&
@@ -125,7 +124,7 @@ module solitaire(
             board[y][x] &&
             board[y+1'b1][x] &&
             !board[y+2'd2][x];
-        end else begin
+        end else begin : g_move_legal_down_oob
           assign move_legal[y][x][DOWN] = 1'b0;
         end
         assign move_valid[y][x][DOWN] =
