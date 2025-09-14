@@ -1,10 +1,11 @@
 
 module solitaire(
-  input wire clk,
-  input wire rst_n,
-  input wire [2:0] piece_x,
-  input wire [2:0] piece_y,
-  input wire [1:0] direction
+  input  wire clk,
+  input  wire rst_n,
+  input  wire [2:0] piece_x,
+  input  wire [2:0] piece_y,
+  input  wire [1:0] direction,
+  output wire [6:0] piece_count
 )
 
 // Models a peg solitaire board:
@@ -40,7 +41,11 @@ always_ff @(posedge clk or negedge rst_n) begin : ff_board
           // Centre peg
           board[i][j] <= 1'b0;
         end else begin
-          board[i][j] <= 1'b1;
+          if (space_exists(i, j)) begin
+            board[i][j] <= 1'b1;
+          end else begin
+            board[i][j] <= 1'b0;
+          end
         end
       end
     end
@@ -134,5 +139,21 @@ always_comb begin
     end
   end
 end
+
+// There are up to 32 pieces on the board
+wire [5:0] piece_count_tmp;
+
+always_comb begin
+  piece_count_tmp = 6'b0;
+  for (integer i=0; i<BOARD_WIDTH; i++) begin
+    for (integer j=0; j<BOARD_WIDTH; j++) begin
+      if board[i][j] begin
+        piece_count_tmp += 6'b1;
+      end
+    end
+  end
+end
+
+assign piece_count == piece_count_tmp;
 
 endmodule

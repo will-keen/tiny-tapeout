@@ -34,12 +34,12 @@ pinout:
   ui[7]: "direction to move peg in - bit 1"
 
   # Outputs
-  uo[0]: ""
-  uo[1]: ""
-  uo[2]: ""
-  uo[3]: ""
-  uo[4]: ""
-  uo[5]: ""
+  uo[0]: "remaining piece count - bit 0"
+  uo[1]: "remaining piece count - bit 1"
+  uo[2]: "remaining piece count - bit 2"
+  uo[3]: "remaining piece count - bit 3"
+  uo[4]: "remaining piece count - bit 4"
+  uo[5]: "remaining piece count - bit 5"
   uo[6]: ""
   uo[7]: ""
 
