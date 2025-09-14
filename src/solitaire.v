@@ -132,17 +132,6 @@ module solitaire(
           move_request[y][x] &&
           move_legal[y][x][DOWN];
 
-      // Board and next state
-      if ((
-          (x >= MIN_VAL && x < MAX_VAL) && (
-            (y >= MIN_VAL) || (y < MAX_VAL)
-          )
-        ) ||
-        (
-          (y >= MIN_VAL && y < MAX_VAL) && (
-            (x >= MIN_VAL) || (x < MAX_VAL)
-          )
-        )) begin : g_space_exists
         always_ff @(posedge clk or negedge rst_n) begin : ff_board
           if (!rst_n) begin
             if (y == 3 && x == 3) begin
@@ -154,32 +143,26 @@ module solitaire(
           end else begin
             if (x > 1 && move_valid[y][x][LEFT]) begin
               board[y][x]   <= 1'b0;
-              board[y][x-1] <= 1'b0;
-              board[y][x-2] <= 1'b1;
+              board[y][(x-1)%BOARD_WIDTH] <= 1'b0;
+              board[y][(x-2)%BOARD_WIDTH] <= 1'b1;
             end
             if (x < (BOARD_WIDTH - 2) && move_valid[y][x][RIGHT]) begin
               board[y][x]   <= 1'b0;
-              board[y][x+1] <= 1'b0;
-              board[y][x+2] <= 1'b1;
+              board[y][(x+1)%BOARD_WIDTH] <= 1'b0;
+              board[y][(x+2)%BOARD_WIDTH] <= 1'b1;
             end
             if (y > 1 && move_valid[y][x][UP]) begin
               board[y][x]   <= 1'b0;
-              board[y-1][x] <= 1'b0;
-              board[y-2][x] <= 1'b1;
+              board[(y-1)%BOARD_WIDTH][x] <= 1'b0;
+              board[(y-2)%BOARD_WIDTH][x] <= 1'b1;
             end
             if (y < (BOARD_WIDTH - 2) && move_valid[y][x][DOWN]) begin
               board[y][x]   <= 1'b0;
-              board[y+1][x] <= 1'b0;
-              board[y+2][x] <= 1'b1;
+              board[(y+1)%BOARD_WIDTH][x] <= 1'b0;
+              board[(y+2)%BOARD_WIDTH][x] <= 1'b1;
             end
           end
         end
-      end else begin : g_space_doesnt_exist
-        always_ff @(posedge clk or negedge rst_n)
-          if (!rst_n) begin
-            board[y][x] <= 1'b0;
-          end
-      end
 
       end // y
     end // x
