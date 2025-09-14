@@ -5,15 +5,16 @@ module solitaire(
   input  wire [2:0] piece_x,
   input  wire [2:0] piece_y,
   input  wire [1:0] direction,
-  output wire [6:0] piece_count
-)
+  output wire [5:0] piece_count,
+  output wire       game_over
+);
 
 // Models a peg solitaire board:
 //     0 1 2 3 4 5 6
 //  0      x x x
 //  1      x x x
 //  2  x x x x x x x
-//  3  x x x x x x x
+//  3  x x x 0 x x x
 //  4  x x x x x x x
 //  5      x x x
 //  6      x x x
@@ -30,130 +31,157 @@ localparam [1:0]
   DOWN  = 2'b11;
 
 // NOTE: Index this by y first - I did it that way in the Python code (can't remember why!)
-reg  board     [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0];
-wire nxt_board [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0];
+reg  [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] board;
+wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] nxt_board;
+wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] space_exists;
+wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] move_request;
+wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0][3:0] move_legal;
+wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0][3:0] move_valid;
 
-always_ff @(posedge clk or negedge rst_n) begin : ff_board
-  if (!rst_n) begin
-    for (integer i=0; i<BOARD_WIDTH; i++) begin
-      for (integer j=0; j<BOARD_WIDTH; j++) begin
-        if (i == 3 && j == 3) begin
-          // Centre peg
-          board[i][j] <= 1'b0;
-        end else begin
-          if (space_exists(i, j)) begin
-            board[i][j] <= 1'b1;
+genvar x, y;
+
+generate
+  for (x=0; x<BOARD_WIDTH; x++) begin
+    for (y=0; y<BOARD_WIDTH; y++) begin
+
+      // Whether a space exists on the grid
+      assign space_exists[y][x] =
+        (
+          (x >= MIN_VAL && x < MAX_VAL) && (
+            (y >= MIN_VAL) || (y < MAX_VAL)
+          )
+        ) ||
+        (
+          (y >= MIN_VAL && y < MAX_VAL) && (
+            (x >= MIN_VAL) || (x < MAX_VAL)
+          )
+        );
+
+      // Whether the user is requesting a move for a particular piece.
+      assign move_request[y][x] = 
+          (piece_x == x) &&
+          (piece_y == y);
+
+      // Whether the input move is legal or not
+      // Space must exist and contain a piece
+      // Must be a piece in the space to the right.
+      // Must be an unoccupied space to the right of that.
+      if (x < (BOARD_WIDTH - 2)) begin
+        assign move_legal[y][x][RIGHT] =
+          space_exists[y][x] &&
+          space_exists[y][x+1'b1] &&
+          space_exists[y][x+2'd2] &&
+          board[y][x+1'b1] &&
+          !board[y][x+2'd2];
+      end else begin
+        assign move_legal[y][x][RIGHT] = 1'b0;
+      end
+      assign move_valid[y][x][RIGHT] = (direction == RIGHT) && move_legal[y][x][RIGHT];
+      // Must be a piece in the space to the left.
+      // Must be an unoccupied space to the left of that.
+      if (x > 1) begin
+        assign move_legal[y][x][LEFT] =
+          space_exists[y][x] &&
+          space_exists[y][x-1'b1] &&
+          space_exists[y][x-2'd2] &&
+          board[y][x-1'b1] &&
+          !board[y][x-2'd2];
+      end else begin
+        assign move_legal[y][x][LEFT] = 1'b0;
+      end
+      assign move_valid[y][x][LEFT] = (direction == LEFT) && move_legal[y][x][LEFT];
+      // Must be a piece in the space above.
+      // Must be an unoccupied space above of that.
+      if (y > 1) begin
+        assign move_legal[y][x][UP] =
+          space_exists[y][x] &&
+          space_exists[y-1'b1][x] &&
+          space_exists[x][y-2'd2] &&
+          board[y-1'b1][x] &&
+          !board[y-2'd2][x];
+      end else begin
+        assign move_legal[y][x][UP] = 1'b0;
+      end
+      assign move_valid[y][x][UP] = (direction == UP) && move_legal[y][x][UP];
+      // Must be a piece in the space above.
+      // Must be an unoccupied space above of that.
+      if (y < (BOARD_WIDTH - 2)) begin
+        assign move_legal[y][x][DOWN] =
+          space_exists[y][x] &&
+          space_exists[y+1'b1][x] &&
+          space_exists[y+2'd2][x] &&
+          board[y+1'b1][x] &&
+          !board[y+2'd2][x];
+      end else begin
+        assign move_legal[y][x][DOWN] = 1'b0;
+      end
+      assign move_valid[y][x][DOWN] = (direction == DOWN) && move_legal[y][x][DOWN];
+
+      // Board and next state
+      always_ff @(posedge clk or negedge rst_n) begin : ff_board
+        if (!rst_n) begin
+          if (y == 3 && x == 3) begin
+            // Centre peg
+            board[y][x] <= 1'b0;
           end else begin
-            board[i][j] <= 1'b0;
+            board[y][x] <= space_exists[y][x];
+          end
+        end else begin
+          if (move_valid[y][x][LEFT]) begin
+            if ((y == piece_y) && (x == (piece_x - 1))) begin
+              board[y][x] <= 1'b0;
+            end
+            if ((y == piece_y) && (x == (piece_x - 2))) begin
+              board[y][x] <= 1'b1;
+            end
+          end
+          if (move_valid[y][x][RIGHT]) begin
+            if ((y == piece_y) && (x == (piece_x + 1))) begin
+              board[y][x] <= 1'b0;
+            end
+            if ((y == piece_y) && (x == (piece_x + 2))) begin
+              board[y][x] <= 1'b1;
+            end
+          end
+          if (move_valid[y][x][UP]) begin
+            if ((y == (piece_y - 1)) && (x == piece_x)) begin
+              board[y][x] <= 1'b0;
+            end
+            if ((y == (piece_y - 2)) && (x == piece_x)) begin
+              board[y][x] <= 1'b1;
+            end
+          end
+          if (move_valid[y][x][DOWN]) begin
+            if ((y == (piece_y + 1)) && (x == piece_x)) begin 
+              board[y][x] <= 1'b0;
+            end
+            if ((y == (piece_y + 2)) && (x == piece_x)) begin
+              board[y][x] <= 1'b1;
+            end
           end
         end
       end
-    end
-  end else begin
-    for (integer i=0; i<BOARD_WIDTH; i++) begin
-      for (integer j=0; j<BOARD_WIDTH; j++) begin
-        board[i][j] <= nxt_board;
-      end
-    end
-  end
-end
 
-// Whether a given space exists on the board or not
-function space_exists;
-  input [2:0] x;
-  input [2:0] y;
-  space_exists =
-    (
-      (x >= MIN_VAL && x < MAX_VAL) && (
-        (y >= MIN_VAL) || (y < MAX_VAL)
-      )
-    ) ||
-    (
-      (y >= MIN_VAL && y < MAX_VAL) && (
-        (x >= MIN_VAL) || (x < MAX_VAL)
-      )
-    )
-endfunction
-
-// Whether the input move is legal or not
-function move_legal;
-  input [2:0] x;
-  input [2:0] y;
-  input [1:0] dir;
-  input       board [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0];
-  // Space must exist and contain a piece
-  if (!(space_exists(piece_x, piece_y) && board[piece_y] [piece_x])) begin
-    move_legal = 1'b0;
-  end else if (dir == RIGHT) begin
-    // Must be a piece in the space to the right.
-    // Must be an unoccupied space to the right of that.
-    move_legal =
-      space_exists(x+1'b1, y) &&
-      board[y][x+1'b1] &&
-      space_exists(x+2'b2, y) &&
-      !board[y][x+2'b2];
-  end else if (dir == LEFT) begin
-    // Must be a piece in the space to the left.
-    // Must be an unoccupied space to the left of that.
-    move_legal =
-      space_exists(x-1'b1, y) &&
-      board[y][x-1'b1] &&
-      space_exists(x-2'b2, y) &&
-      !board[y][x-2'b2];
-  end else if (dir == UP) begin
-    // Must be a piece in the space above.
-    // Must be an unoccupied space above of that.
-    move_legal =
-      space_exists(x, y-1'b1) &&
-      board[y-1'b1][x] &&
-      space_exists(x, y-2'b2) &&
-      !board[y-2'b2][x];
-  end else if (dir == DOWN) begin
-    // Must be a piece in the space above.
-    // Must be an unoccupied space above of that.
-    move_legal =
-      space_exists(x, y+1'b1) &&
-      board[y+1'b1][x] &&
-      space_exists(x, y+2'b2) &&
-      !board[y+2'b2][x];
-  end
-endfunction
-
-
-always_comb begin
-  // Start with existing board
-  nxt_board = board;
-  if (move_legal(piece_x, piece_y, direction, board)) begin
-    if (direction == LEFT) begin
-      board[piece_y][piece_x - 1] = 1'b0
-      board[piece_y][piece_x - 2] = 1'b1
-    end else if (direction == RIGHT) begin
-      board[piece_y][piece_x + 1] = 1'b0
-      board[piece_y][piece_x + 2] = 1'b1
-    end else if (direciton == UP) begin
-      board[piece_y - 1][piece_x] = 1'b0
-      board[piece_y - 2][piece_x] = 1'b1
-    end else if (direction == DOWN) begin
-      board[piece_y + 1][piece_x] = 1'b0
-      board[piece_y + 2][piece_x] = 1'b1
-    end
-  end
-end
+    end // y
+  end // x
+endgenerate
 
 // There are up to 32 pieces on the board
-wire [5:0] piece_count_tmp;
+reg [5:0] piece_count_r;
+wire      piece_count_r_en;
 
-always_comb begin
-  piece_count_tmp = 6'b0;
-  for (integer i=0; i<BOARD_WIDTH; i++) begin
-    for (integer j=0; j<BOARD_WIDTH; j++) begin
-      if board[i][j] begin
-        piece_count_tmp += 6'b1;
-      end
-    end
+assign piece_count_r_en = |move_valid;
+
+always_ff @(posedge clk or negedge rst_n) begin
+  if (~rst_n) begin
+    piece_count_r <= 6'd32;
+  end else if (piece_count_r_en) begin
+    piece_count_r <= piece_count_r - 6'b1;
   end
 end
 
-assign piece_count == piece_count_tmp;
+assign piece_count = piece_count_r;
+
+assign game_over = ~|move_legal;
 
 endmodule

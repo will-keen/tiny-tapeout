@@ -18,6 +18,10 @@ A peg solitaire simulator. Inputs are:
   - UP is 0b10
   - DOWN is 0b11
 
+Outputs are:
+- The number of pegs remaining
+- A bit to indicate game over, i.e. no remaining legal moves.
+
 If the x/y coordinates are outside of the usable grid,
 or does not contain a peg, the state stays the same.
 

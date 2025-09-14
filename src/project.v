@@ -19,15 +19,16 @@ module tt_um_will_keen_solitaire (
   // All output pins must be assigned. If not used, assign to 0.
   assign uio_out = 0;
   assign uio_oe  = 0;
-  assign ou_out[7:6] = 2'b0;
+  assign uo_out[7] = 1'b0;
 
   solitaire u_solitaire(
     .clk(clk),
     .rst_n(rst_n),
     .piece_x(ui_in[2:0]),
     .piece_y(ui_in[5:3]),
-    .direction(ui_in[7:6])
-    .piece_count(ou_out[5:0])
+    .direction(ui_in[7:6]),
+    .piece_count(uo_out[5:0]),
+    .game_over(uo_out[6])
   );
 
   // List all unused inputs to prevent warnings

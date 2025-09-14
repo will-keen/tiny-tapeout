@@ -40,7 +40,7 @@ pinout:
   uo[3]: "remaining piece count - bit 3"
   uo[4]: "remaining piece count - bit 4"
   uo[5]: "remaining piece count - bit 5"
-  uo[6]: ""
+  uo[6]: "game over bit"
   uo[7]: ""
 
   # Bidirectional pins
