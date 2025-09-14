@@ -143,8 +143,11 @@ module solitaire(
           end else begin
             if (x > 1 && move_valid[y][x][LEFT]) begin
               board[y][x]   <= 1'b0;
+              // SELRANGE only fires on these lines. It's entirely safe.
+              /* verilator lint_off SELRANGE */
               board[y][(x-1)%BOARD_WIDTH] <= 1'b0;
               board[y][(x-2)%BOARD_WIDTH] <= 1'b1;
+              /* verilator lint_on */
             end
             if (x < (BOARD_WIDTH - 2) && move_valid[y][x][RIGHT]) begin
               board[y][x]   <= 1'b0;
