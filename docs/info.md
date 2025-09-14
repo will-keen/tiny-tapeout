@@ -42,3 +42,6 @@ https://en.wikipedia.org/wiki/Peg_solitaire
 
 We use the English rules, as is proper.
 
+The solitaire game outputs the number of remaining pieces on the board.
+
+Your goal is to get to one remaining piece.
