@@ -16,8 +16,6 @@ from pysolitaire.solitaire.players.random import RandomPlayer
 
 import random
 
-# Tiny Tapeout CI doesn't appear to use a constant seed
-random.seed(0)
 
 def pack_input(next_move: Move):
     input_val = next_move.x
@@ -50,6 +48,9 @@ async def test_project(dut):
 
     dut._log.info("Test project behavior")
 
+    # Tiny Tapeout CI doesn't appear to use a constant seed
+    random.seed(0)
+
     # Create a random player (contains board state)
     player = RandomPlayer()
 
@@ -72,6 +73,7 @@ async def test_project(dut):
     for _ in range (10):
         # Check that the number of pieces left remains stable
         await ClockCycles(dut.clk, 1)
+        output_val = int(dut.uo_out.value)
         num_pieces, game_over = unpack_output(output_val)
-        assert output_val == player.board.num_pieces()
+        assert num_pieces == player.board.num_pieces()
         assert game_over
