@@ -132,7 +132,17 @@ module solitaire(
           move_request[y][x] &&
           move_legal[y][x][DOWN];
 
-        // Board and next state
+      // Board and next state
+      if ((
+          (x >= MIN_VAL && x < MAX_VAL) && (
+            (y >= MIN_VAL) || (y < MAX_VAL)
+          )
+        ) ||
+        (
+          (y >= MIN_VAL && y < MAX_VAL) && (
+            (x >= MIN_VAL) || (x < MAX_VAL)
+          )
+        )) begin : g_space_exists
         always_ff @(posedge clk or negedge rst_n) begin : ff_board
           if (!rst_n) begin
             if (y == 3 && x == 3) begin
@@ -164,6 +174,12 @@ module solitaire(
             end
           end
         end
+      end else begin : g_space_doesnt_exist
+        always_ff @(posedge clk or negedge rst_n)
+          if (!rst_n) begin
+            board[y][x] <= 1'b0;
+          end
+      end
 
       end // y
     end // x
