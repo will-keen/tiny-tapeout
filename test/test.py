@@ -5,6 +5,8 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
+from pysolitaire.solitaire.board import Move
+from pysolitaire.solitaire.players.random import RandomPlayer
 
 @cocotb.test()
 async def test_project(dut):
@@ -25,16 +27,17 @@ async def test_project(dut):
 
     dut._log.info("Test project behavior")
 
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
+    # Create a random player (contains board state)
+    player = RandomPlayer()
 
-    # Wait for one clock cycle to see the output values
-    await ClockCycles(dut.clk, 1)
+    while len(player.board.get_moves() > 0):
+        next_move: Move = player.get_next_move()
+        input_val = next_move.x
+        input_val |= next_move.y << 3
+        input_val |= int(next_move.jump_dir) << 6
+        dut.ui_in.value = input_val
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
-
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+        # Wait for one clock cycle to see the output values
+        await ClockCycles(dut.clk, 1)
+        output_val = int(dut.uo_out.value)
+        assert output_val == player.board.num_pieces()
