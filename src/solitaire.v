@@ -82,7 +82,7 @@ module solitaire(
           move_legal[y][x][RIGHT];
         // Must be a piece in the space to the left.
         // Must be an unoccupied space to the left of that.
-        if (x > 1) begin ; g_move_legal_left
+        if (x > 1) begin : g_move_legal_left
           assign move_legal[y][x][LEFT] =
             space_exists[y][x] &&
             space_exists[y][x-1'b1] &&
