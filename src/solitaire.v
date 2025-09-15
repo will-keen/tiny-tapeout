@@ -30,6 +30,12 @@ module solitaire(
     UP    = 2'b10,
     DOWN  = 2'b11;
 
+  // This is a hack - it has the same value as space_exists,
+  // but with the centremost peg removed.
+  // Reset needs to be a constant for synthesis.
+  // It can't have the same dimensions in a localparam due to tool limitations.
+  localparam [(BOARD_WIDTH*BOARD_WIDTH)-1:0] BOARD_RESET_VALUE = 49'h070e7feffce1c;
+
   // NOTE: Index this by y first - I did it that way in the Python code (can't remember why!)
   reg  [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] board;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] space_exists;
@@ -138,15 +144,17 @@ module solitaire(
               // Centre peg
               board[y][x] <= 1'b0;
             end else begin
-              board[y][x] <= space_exists[y][x];
+              // Use localparam to ensure constant reset.
+              // Can't match the packed dimensions with a localparam.
+              board[y][x] <= ((BOARD_RESET_VALUE >> (y * BOARD_WIDTH)) >> x) & 1'b1;
             end
           end else begin
             if (x > 1 && move_valid[y][x][LEFT]) begin
               board[y][x]   <= 1'b0;
               // SELRANGE only fires on these lines. It's entirely safe.
               /* verilator lint_off SELRANGE */
-              board[y][(x-1)%BOARD_WIDTH] <= 1'b0;
-              board[y][(x-2)%BOARD_WIDTH] <= 1'b1;
+              board[y][(x-1 >= 0 ? x-1 : 0)%BOARD_WIDTH] <= 1'b0;
+              board[y][(x-2 >= 0 ? x-2 : 0)%BOARD_WIDTH] <= 1'b1;
               /* verilator lint_on SELRANGE */
             end
             if (x < (BOARD_WIDTH - 2) && move_valid[y][x][RIGHT]) begin
@@ -156,8 +164,8 @@ module solitaire(
             end
             if (y > 1 && move_valid[y][x][UP]) begin
               board[y][x]   <= 1'b0;
-              board[(y-1)%BOARD_WIDTH][x] <= 1'b0;
-              board[(y-2)%BOARD_WIDTH][x] <= 1'b1;
+              board[(y-1 >= 0 ? y-1 : 0)%BOARD_WIDTH][x] <= 1'b0;
+              board[(y-2 >= 0 ? y-2 : 0)%BOARD_WIDTH][x] <= 1'b1;
             end
             if (y < (BOARD_WIDTH - 2) && move_valid[y][x][DOWN]) begin
               board[y][x]   <= 1'b0;
