@@ -30,14 +30,17 @@ module solitaire(
     UP    = 2'b10,
     DOWN  = 2'b11;
 
-  // This is a hack - it has the same value as space_exists,
-  // but with the centremost peg removed.
+  // This is a hack.
+  // We can't have the same dimensions as board a localparam due to tool limitations.
+  localparam [(BOARD_WIDTH*BOARD_WIDTH)-1:0] SPACE_EXISTS = 49'h070e7ffffce1c;
   // Reset needs to be a constant for synthesis.
-  // It can't have the same dimensions in a localparam due to tool limitations.
+  // It has the same value as space_exists,
+  // but with the centremost peg removed.
   localparam [(BOARD_WIDTH*BOARD_WIDTH)-1:0] BOARD_RESET_VALUE = 49'h070e7feffce1c;
 
   // NOTE: Index this by y first - I did it that way in the Python code (can't remember why!)
   reg  [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] board;
+  wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] board_nxt;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] space_exists;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0] move_request;
   wire [BOARD_WIDTH-1:0][BOARD_WIDTH-1:0][3:0] move_legal;
@@ -138,41 +141,52 @@ module solitaire(
           move_request[y][x] &&
           move_legal[y][x][DOWN];
 
-        always_ff @(posedge clk or negedge rst_n) begin : ff_board
-          if (!rst_n) begin
-            // Use localparam to ensure constant reset.
-            // Can't match the packed dimensions with a localparam.
-            board[y][x] <= BOARD_RESET_VALUE[(y * BOARD_WIDTH) + x];
-          end else begin
-            if (x > 1 && move_valid[y][x][LEFT]) begin
-              board[y][x]   <= 1'b0;
-              // SELRANGE only fires on these lines. It's entirely safe.
-              /* verilator lint_off SELRANGE */
-              board[y][(x-1 >= 0 ? x-1 : 0)%BOARD_WIDTH] <= 1'b0;
-              board[y][(x-2 >= 0 ? x-2 : 0)%BOARD_WIDTH] <= 1'b1;
-              /* verilator lint_on SELRANGE */
-            end
-            if (x < (BOARD_WIDTH - 2) && move_valid[y][x][RIGHT]) begin
-              board[y][x]   <= 1'b0;
-              board[y][(x+1)%BOARD_WIDTH] <= 1'b0;
-              board[y][(x+2)%BOARD_WIDTH] <= 1'b1;
-            end
-            if (y > 1 && move_valid[y][x][UP]) begin
-              board[y][x]   <= 1'b0;
-              board[(y-1 >= 0 ? y-1 : 0)%BOARD_WIDTH][x] <= 1'b0;
-              board[(y-2 >= 0 ? y-2 : 0)%BOARD_WIDTH][x] <= 1'b1;
-            end
-            if (y < (BOARD_WIDTH - 2) && move_valid[y][x][DOWN]) begin
-              board[y][x]   <= 1'b0;
-              board[(y+1)%BOARD_WIDTH][x] <= 1'b0;
-              board[(y+2)%BOARD_WIDTH][x] <= 1'b1;
-            end
-          end
+        // Next board state
+        if (SPACE_EXISTS[(y * BOARD_WIDTH) + x]) begin : g_exists
+          // Throughout this, we have to ensure x and y don't go out of bounds.
+          // We do this with modulo and ternaries. It looks awful.
+          assign board_nxt[y][x] = // If the move is valid for the space itself,
+                                   // it loses its peg.
+                                   move_valid[y][x][LEFT] ? 1'b0 :
+                                   move_valid[y][x][RIGHT] ? 1'b0 :
+                                   move_valid[y][x][UP] ? 1'b0 :
+                                   move_valid[y][x][DOWN] ? 1'b0 :
+                                   // If the move is valid for an adjacent space
+                                   // towards this space, this space loses its peg.
+                                   ((x < BOARD_WIDTH) && move_valid[y][(x+1)%BOARD_WIDTH][LEFT]) ? 1'b0 :
+                                   ((x > 0) && move_valid[y][((x-1) >= 0 ? (x-1) : 0)][RIGHT]) ? 1'b0 :
+                                   ((y < BOARD_WIDTH) && move_valid[(y+1)%BOARD_WIDTH][x][UP]) ? 1'b0 :
+                                   ((y > 0) && move_valid[((y-1) >= 0 ? (y-1) : 0)][x][DOWN]) ? 1'b0 :
+                                   // If the move is valid for a space
+                                   // two spaces away towards this space,
+                                   // this space gains a peg.
+                                   ((x < (BOARD_WIDTH-1)) && move_valid[y][(x+2)%BOARD_WIDTH][LEFT]) ? 1'b1 :
+                                   ((x > 1) && move_valid[y][((x-2) >= 0 ? (x-2) : 0)][RIGHT]) ? 1'b1 :
+                                   ((y < (BOARD_WIDTH-1)) && move_valid[(y+2)%BOARD_WIDTH][x][UP]) ? 1'b1 :
+                                   ((y > 1) && move_valid[((y-2) >= 0 ? (y-2) : 0)][x][DOWN]) ? 1'b1 :
+                                   // Otherwise it stays the same
+                                   board[y][x];
+        end else begin : g_doesnt_exist
+          assign board_nxt[y][x] = 1'b0;
         end
 
       end // y
     end // x
   endgenerate
+
+  wire board_en;
+
+  assign board_en = |move_valid;
+
+  always_ff @(posedge clk or negedge rst_n) begin : ff_board
+    if (!rst_n) begin
+      // Use localparam to ensure constant reset.
+      // Can't match the packed dimensions with a localparam.
+      board <= BOARD_RESET_VALUE;
+    end else if (board_en) begin
+      board <= board_nxt;
+    end
+  end
 
   // There are up to 32 pieces on the board
   reg [5:0] piece_count_r;
@@ -180,7 +194,7 @@ module solitaire(
 
   assign piece_count_r_en = |move_valid;
 
-  always_ff @(posedge clk or negedge rst_n) begin
+  always_ff @(posedge clk or negedge rst_n) begin : ff_count
     if (~rst_n) begin
       piece_count_r <= 6'd32;
     end else if (piece_count_r_en) begin
