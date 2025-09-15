@@ -140,14 +140,9 @@ module solitaire(
 
         always_ff @(posedge clk or negedge rst_n) begin : ff_board
           if (!rst_n) begin
-            if (y == 3 && x == 3) begin
-              // Centre peg
-              board[y][x] <= 1'b0;
-            end else begin
-              // Use localparam to ensure constant reset.
-              // Can't match the packed dimensions with a localparam.
-              board[y][x] <= ((BOARD_RESET_VALUE >> (y * BOARD_WIDTH)) >> x) & 1'b1;
-            end
+            // Use localparam to ensure constant reset.
+            // Can't match the packed dimensions with a localparam.
+            board[y][x] <= ((BOARD_RESET_VALUE >> (y * BOARD_WIDTH)) >> x) & 1'b1;
           end else begin
             if (x > 1 && move_valid[y][x][LEFT]) begin
               board[y][x]   <= 1'b0;
