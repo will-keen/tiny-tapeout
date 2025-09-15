@@ -142,7 +142,7 @@ module solitaire(
           if (!rst_n) begin
             // Use localparam to ensure constant reset.
             // Can't match the packed dimensions with a localparam.
-            board[y][x] <= ((BOARD_RESET_VALUE >> (y * BOARD_WIDTH)) >> x) & 1'b1;
+            board[y][x] <= BOARD_RESET_VALUE[(y * BOARD_WIDTH) + x];
           end else begin
             if (x > 1 && move_valid[y][x][LEFT]) begin
               board[y][x]   <= 1'b0;
